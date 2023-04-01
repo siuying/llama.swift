@@ -53,7 +53,7 @@ public class Llama {
 
     public init(path: String, contextParams: LlamaContextParams) throws {
         self.contextParams = contextParams
-        var params = llama_context_params()
+        var params = llama_context_default_params()
         params.n_ctx = contextParams.context
         params.n_parts = contextParams.parts
         params.seed = contextParams.seed
@@ -79,9 +79,13 @@ public class Llama {
     }
 
     public func predict(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> String {
+        // Add a space in front of the first character to match OG llama tokenizer behavior
+        let input = " " + input
+        // tokenize the prompt
         let inputs = tokenize(input, addBos: true)
+
         var outputs = Array<llama_token>()
-        var strings = [String]()
+        var outputStrings = [String]()
         var consumed = 0
         var remain = predicts
         var nPast = Int32(0)
@@ -134,7 +138,7 @@ public class Llama {
 
             for outputToken in outputs {
                 if let str = llama_token_to_str(context, outputToken) {
-                    strings.append(String(cString: str))
+                    outputStrings.append(String(cString: str))
                 }
             }
 
@@ -143,12 +147,10 @@ public class Llama {
             }
         }
 
-        return strings.joined()
+        return outputStrings.joined()
     }
 
     public func embedding(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> [Float] {
-        let past: Int32 = 0
-
         // Add a space in front of the first character to match OG llama tokenizer behavior
         let input = " " + input
 
@@ -159,7 +161,7 @@ public class Llama {
             return []
         }
 
-        if llama_eval(context, inputs, Int32(inputs.count), past, contextParams.numberOFThread) != 0 {
+        if llama_eval(context, inputs, Int32(inputs.count), Int32(0), contextParams.numberOFThread) != 0 {
             throw LlamaError.failedToEval
         }
 
