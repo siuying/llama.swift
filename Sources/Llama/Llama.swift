@@ -6,8 +6,8 @@ private typealias _LlamaProgressCallback = (_ progress: Float, _ userData: Unsaf
 public typealias LlamaProgressCallback = (_ progress: Float, _ llama: Llama) -> Void
 
 public struct LlamaContextParams {
-    public var nCtx: Int32 = 256    // text context
-    public var nParts: Int32 = -1   // -1 for default
+    public var context: Int32 = 512    // text context
+    public var parts: Int32 = -1   // -1 for default
     public var seed: Int32 = 0      // RNG seed, 0 for random
 
     public var f16Kv = true         // use fp16 for KV cache
@@ -22,17 +22,39 @@ public struct LlamaContextParams {
     public var progressCallbackUserData: UnsafeMutableRawPointer?
 }
 
+public struct LlamaSampleParams {
+    public var topK: Int32
+    public var topP: Float
+    public var temperature: Float
+    public var repeatLastN: Int32
+    public var repeatPenalty: Float
+    public var batchSize: Int32
+
+    public static let `default` = LlamaSampleParams(
+        topK: 40,
+        topP: 0.95,
+        temperature: 0.8,
+        repeatLastN: 64,
+        repeatPenalty: 1.1,
+        batchSize: 8
+    )
+}
+
 public enum LlamaError: Error {
     case modelNotFound(String)
+    case inputTooLong
+    case failedToEval
 }
 
 public class Llama {
-    private let llamaContext: OpaquePointer?
+    private let context: OpaquePointer?
+    private var contextParams: LlamaContextParams
 
     public init(path: String, contextParams: LlamaContextParams) throws {
+        self.contextParams = contextParams
         var params = llama_context_params()
-        params.n_ctx = contextParams.nCtx
-        params.n_parts = contextParams.nParts
+        params.n_ctx = contextParams.context
+        params.n_parts = contextParams.parts
         params.seed = contextParams.seed
         params.f16_kv = contextParams.f16Kv
         params.logits_all = contextParams.logitsAll
@@ -44,19 +66,84 @@ public class Llama {
             throw LlamaError.modelNotFound(path)
         }
 
-        print("llama_init_from_file(\(path)")
-        llamaContext = llama_init_from_file(path, params)
+        context = llama_init_from_file(path, params)
     }
 
-    func tokenize(_ input: String) -> [llama_token] {
+    func tokenize(_ input: String, addBos: Bool = false) -> [llama_token] {
         var embeddings: [llama_token] = Array<llama_token>(repeating: llama_token(), count: input.utf8.count)
-        let n = llama_tokenize(llamaContext, input, &embeddings, Int32(input.utf8.count), false)
+        let n = llama_tokenize(context, input, &embeddings, Int32(input.utf8.count), addBos)
         assert(n >= 0)
         embeddings.removeSubrange(Int(n)..<embeddings.count)
         return embeddings
     }
 
+    func predict(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> String {
+        let inputs = tokenize(input, addBos: true)
+        var outputs = Array<llama_token>()
+        var strings = [String]()
+        var consumed = 0
+        var remain = predicts
+        var nPast = Int32(0)
+
+        if inputs.count > contextParams.context - 4 {
+            throw LlamaError.inputTooLong
+        }
+
+        var lastNTokens = Array<llama_token>()
+        while remain != 0 {
+            if outputs.count > 0 {
+                if (llama_eval(context, outputs, Int32(outputs.count), nPast, 4) != 0) {
+                    throw LlamaError.failedToEval
+                }
+            }
+
+            nPast += Int32(outputs.count)
+            outputs.removeAll()
+
+            if inputs.count <= consumed {
+                let id = llama_sample_top_p_top_k(
+                    context,
+                    lastNTokens,
+                    params.repeatLastN,
+                    params.topK,
+                    params.topP,
+                    params.temperature,
+                    params.repeatPenalty
+                )
+                lastNTokens.removeFirst()
+                lastNTokens.append(id)
+
+                outputs.append(id)
+                remain -= 1
+            } else {
+                while inputs.count > consumed {
+                    outputs.append(inputs[consumed])
+                    if lastNTokens.count > 0 {
+                        lastNTokens.removeFirst()
+                    }
+                    lastNTokens.append(inputs[consumed])
+                    consumed += 1
+                    if outputs.count >= params.batchSize {
+                        break
+                    }
+                }
+            }
+
+            for outputToken in outputs {
+                if let str = llama_token_to_str(context, outputToken) {
+                    strings.append(String(cString: str))
+                }
+            }
+
+            if outputs.last == llama_token_eos() {
+                break
+            }
+        }
+
+        return strings.joined()
+    }
+
     deinit {
-        llama_free(llamaContext)
+        llama_free(context)
     }
 }

@@ -22,7 +22,7 @@ let package = Package(
             name: "Llama",
             dependencies: ["CLlama"],
             resources: [
-                .copy("Resources/ggml-vocab.bin")
+                .copy("Resources/gpt4all-lora-quantized.bin"),
             ]
         ),
         .target(
