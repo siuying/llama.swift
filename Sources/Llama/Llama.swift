@@ -93,7 +93,7 @@ public class Llama {
         var lastNTokens = Array<llama_token>()
         while remain != 0 {
             if outputs.count > 0 {
-                if (llama_eval(context, outputs, Int32(outputs.count), nPast, contextParams.numberOFThread) != 0) {
+                if llama_eval(context, outputs, Int32(outputs.count), nPast, contextParams.numberOFThread) != 0 {
                     throw LlamaError.failedToEval
                 }
             }
@@ -144,6 +144,30 @@ public class Llama {
         }
 
         return strings.joined()
+    }
+
+    public func embedding(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> [Float] {
+        let past: Int32 = 0
+
+        // Add a space in front of the first character to match OG llama tokenizer behavior
+        let input = " " + input
+
+        // tokenize the prompt
+        let inputs = tokenize(input, addBos: true)
+
+        guard inputs.count > 0 else {
+            return []
+        }
+
+        if llama_eval(context, inputs, Int32(inputs.count), past, contextParams.numberOFThread) != 0 {
+            throw LlamaError.failedToEval
+        }
+
+        let embeddingsCount = Int(llama_n_embd(context))
+        guard let embeddings = llama_get_embeddings(context) else {
+            return []
+        }
+        return Array(UnsafeBufferPointer(start: embeddings, count: embeddingsCount))
     }
 
     deinit {

@@ -6,7 +6,10 @@ final class LlamaTests: XCTestCase {
 
     override func setUp() async throws {
         let bundlePath = Bundle.module.path(forResource: "gpt4all-lora-quantized", ofType: "bin")!
-        llama = try Llama(path: bundlePath, contextParams: LlamaContextParams())
+
+        var params = LlamaContextParams()
+        params.embedding = true
+        llama = try Llama(path: bundlePath, contextParams: params)
     }
 
     func testTokenize() throws {
@@ -25,5 +28,17 @@ final class LlamaTests: XCTestCase {
         let result2 = try llama.predict("Steve Job: Your time is limited, so don't waste it", predicts: 64, params: params)
         XCTAssertNotNil(result2)
         XCTAssertTrue(result2.contains("living someone else's life. Don't be trapped by dogma - which is living with the results of other people's thinking. Don't let the noise of other's opinions drown out your own inner voice. And most important, have the courage to follow your heart and intuition."))
+    }
+
+    func testEmbedding() throws {
+        var params = LlamaSampleParams.default
+        params.temperature = 0.0001
+        let result = try llama.embedding("London bridge is falling down")
+        XCTAssertGreaterThan(result.count, 0)
+        XCTAssertEqual(result.count, 4096)
+
+        let result2 = try llama.embedding("Falling down, falling down")
+        XCTAssertGreaterThan(result2.count, 0)
+        XCTAssertEqual(result2.count, 4096)
     }
 }
