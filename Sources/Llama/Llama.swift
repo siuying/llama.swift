@@ -70,15 +70,7 @@ public class Llama {
         context = llama_init_from_file(path, params)
     }
 
-    func tokenize(_ input: String, addBos: Bool = false) -> [llama_token] {
-        var embeddings: [llama_token] = Array<llama_token>(repeating: llama_token(), count: input.utf8.count)
-        let n = llama_tokenize(context, input, &embeddings, Int32(input.utf8.count), addBos)
-        assert(n >= 0)
-        embeddings.removeSubrange(Int(n)..<embeddings.count)
-        return embeddings
-    }
-
-    public func predict(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> String {
+    public func predict(_ input: String, count: Int = 128, params: LlamaSampleParams = .default) throws -> String {
         // Add a space in front of the first character to match OG llama tokenizer behavior
         let input = " " + input
         // tokenize the prompt
@@ -87,7 +79,7 @@ public class Llama {
         var outputs = Array<llama_token>()
         var outputStrings = [String]()
         var consumed = 0
-        var remain = predicts
+        var remain = count
         var nPast = Int32(0)
 
         if inputs.count > contextParams.context - 4 {
@@ -150,7 +142,7 @@ public class Llama {
         return outputStrings.joined()
     }
 
-    public func embedding(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> [Float] {
+    public func embeddings(_ input: String) throws -> [Float] {
         // Add a space in front of the first character to match OG llama tokenizer behavior
         let input = " " + input
 
@@ -174,5 +166,19 @@ public class Llama {
 
     deinit {
         llama_free(context)
+    }
+
+    // MARK: Internal
+
+    func tokenize(_ input: String, addBos: Bool = false) -> [llama_token] {
+        if input.count == 0 {
+            return []
+        }
+
+        var embeddings: [llama_token] = Array<llama_token>(repeating: llama_token(), count: input.utf8.count)
+        let n = llama_tokenize(context, input, &embeddings, Int32(input.utf8.count), addBos)
+        assert(n >= 0)
+        embeddings.removeSubrange(Int(n)..<embeddings.count)
+        return embeddings
     }
 }

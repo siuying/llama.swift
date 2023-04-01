@@ -21,18 +21,22 @@ let package = Package(
         .target(
             name: "Llama",
             dependencies: ["CLlama"],
-            resources: [
-                .copy("Resources/gpt4all-lora-quantized.bin"),
-            ]
+            resources: []
         ),
         .target(
             name: "CLlama",
             sources: ["ggml.c", "llama.cpp"],
             publicHeadersPath: "spm-headers",
-            cSettings: [.unsafeFlags(["-O3"])]),
+            cSettings: [
+                .unsafeFlags(["-O3"]),
+                .unsafeFlags(["-w"])    // ignore all warnings
+            ]),
         .testTarget(
             name: "LlamaTests",
-            dependencies: ["Llama"]),
+            dependencies: ["Llama"],
+            resources: [
+                .copy("Resources/gpt4all-lora-quantized.bin"),
+            ]),
     ],
     cxxLanguageStandard: CXXLanguageStandard.cxx11
 )

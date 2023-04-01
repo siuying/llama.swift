@@ -5,11 +5,12 @@ final class LlamaTests: XCTestCase {
     var llama: Llama!
 
     override func setUp() async throws {
-        let bundlePath = Bundle.module.path(forResource: "gpt4all-lora-quantized", ofType: "bin")!
+        let bundlePath = Bundle.module.path(forResource: "gpt4all-lora-quantized", ofType: "bin")
+        try XCTSkipIf(bundlePath == nil, "Tests/LlamaTests/Resources/gpt4all-lora-quantized.bin not found, have you download the file?")
 
         var params = LlamaContextParams()
         params.embedding = true
-        llama = try Llama(path: bundlePath, contextParams: params)
+        llama = try Llama(path: bundlePath!, contextParams: params)
     }
 
     func testTokenize() throws {
@@ -21,11 +22,11 @@ final class LlamaTests: XCTestCase {
     func testPredict() throws {
         var params = LlamaSampleParams.default
         params.temperature = 0.0001
-        let result = try llama.predict("Neil Armstrong: That's one small step for a man,", predicts: 64, params: params)
+        let result = try llama.predict("Neil Armstrong: That's one small step for a man,", count: 64, params: params)
         XCTAssertNotNil(result)
         XCTAssertTrue(result.contains("one giant leap for mankind."))
 
-        let result2 = try llama.predict("Steve Job: Your time is limited, so don't waste it", predicts: 64, params: params)
+        let result2 = try llama.predict("Steve Job: Your time is limited, so don't waste it", count: 64, params: params)
         XCTAssertNotNil(result2)
         XCTAssertTrue(result2.contains("living someone else's life."))
     }
@@ -33,11 +34,11 @@ final class LlamaTests: XCTestCase {
     func testEmbedding() throws {
         var params = LlamaSampleParams.default
         params.temperature = 0.0001
-        let result = try llama.embedding("London bridge is falling down")
+        let result = try llama.embeddings("London bridge is falling down")
         XCTAssertGreaterThan(result.count, 0)
         XCTAssertEqual(result.count, 4096)
 
-        let result2 = try llama.embedding("Falling down, falling down")
+        let result2 = try llama.embeddings("Falling down, falling down")
         XCTAssertGreaterThan(result2.count, 0)
         XCTAssertEqual(result2.count, 4096)
     }
