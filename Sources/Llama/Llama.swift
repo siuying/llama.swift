@@ -9,6 +9,7 @@ public struct LlamaContextParams {
     public var context: Int32 = 512    // text context
     public var parts: Int32 = -1   // -1 for default
     public var seed: Int32 = 0      // RNG seed, 0 for random
+    public var numberOFThread: Int32 = 4
 
     public var f16Kv = true         // use fp16 for KV cache
     public var logitsAll = false    // the llama_eval() call computes all logits, not just the last one
@@ -77,7 +78,7 @@ public class Llama {
         return embeddings
     }
 
-    func predict(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> String {
+    public func predict(_ input: String, predicts: Int = 128, params: LlamaSampleParams = .default) throws -> String {
         let inputs = tokenize(input, addBos: true)
         var outputs = Array<llama_token>()
         var strings = [String]()
@@ -92,7 +93,7 @@ public class Llama {
         var lastNTokens = Array<llama_token>()
         while remain != 0 {
             if outputs.count > 0 {
-                if (llama_eval(context, outputs, Int32(outputs.count), nPast, 4) != 0) {
+                if (llama_eval(context, outputs, Int32(outputs.count), nPast, contextParams.numberOFThread) != 0) {
                     throw LlamaError.failedToEval
                 }
             }
@@ -101,10 +102,12 @@ public class Llama {
             outputs.removeAll()
 
             if inputs.count <= consumed {
+                let skipped = Int(contextParams.context - params.repeatLastN)
+                let lastNTokensSkipped = lastNTokens.count > skipped ? Array(lastNTokens.suffix(from: skipped)) : lastNTokens
                 let id = llama_sample_top_p_top_k(
                     context,
-                    lastNTokens,
-                    params.repeatLastN,
+                    lastNTokensSkipped,
+                    Int32(lastNTokensSkipped.count),
                     params.topK,
                     params.topP,
                     params.temperature,
