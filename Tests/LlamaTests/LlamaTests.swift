@@ -42,4 +42,27 @@ final class LlamaTests: XCTestCase {
         XCTAssertGreaterThan(result2.count, 0)
         XCTAssertEqual(result2.count, 4096)
     }
+
+    func testQuestionAnswering() throws {
+        let prompt = """
+Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
+
+The device was announced and unveiled on January 27, 2010, by Apple founder Steve Jobs at an Apple press event. On April 3, 2010, the Wi-Fi variant of the device was released in the United States, followed by the release of the "Wi-Fi + 3G" variant on April 30. On May 28, 2010, it was released in Australia, Canada, France, Japan, Italy, Germany, Spain, Switzerland and the United Kingdom.
+
+Question: When is iPad first released in United Kingdom?
+
+Helpful Answer:
+"""
+
+        let result = try llama.predict(prompt, count: 2024)
+        print(result)
+
+        let prompt2 = """
+Question: When is iPad first released in United Kingdom?
+
+Helpful Answer:
+"""
+        let result2 = try llama.predict(prompt2, count: 2024)
+        print(result2)
+    }
 }

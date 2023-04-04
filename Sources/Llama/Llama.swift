@@ -17,6 +17,8 @@ public struct LlamaContextParams {
     public var useMlock = false     // force system to keep model in RAM
     public var embedding = false    // embedding mode only
 
+    public static let `default` = LlamaContextParams()
+
     public init(context: Int32 = 512, parts: Int32 = -1, seed: Int32 = 0, numberOFThread: Int32 = 4, f16Kv: Bool = true, logitsAll: Bool = false, vocabOnly: Bool = false, useMlock: Bool = false, embedding: Bool = false) {
         self.context = context
         self.parts = parts
@@ -46,6 +48,15 @@ public struct LlamaSampleParams {
         repeatPenalty: 1.1,
         batchSize: 8
     )
+
+    public init(topK: Int32 = 40, topP: Float = 0.95, temperature: Float = 0.8, repeatLastN: Int32 = 64, repeatPenalty: Float = 1.1, batchSize: Int32 = 8) {
+        self.topK = topK
+        self.topP = topP
+        self.temperature = temperature
+        self.repeatLastN = repeatLastN
+        self.repeatPenalty = repeatPenalty
+        self.batchSize = batchSize
+    }
 }
 
 public enum LlamaError: Error {
@@ -58,7 +69,7 @@ public class Llama {
     private let context: OpaquePointer?
     private var contextParams: LlamaContextParams
 
-    public init(path: String, contextParams: LlamaContextParams) throws {
+    public init(path: String, contextParams: LlamaContextParams = .default) throws {
         self.contextParams = contextParams
         var params = llama_context_default_params()
         params.n_ctx = contextParams.context
