@@ -10,6 +10,9 @@ let package = Package(
         .library(
             name: "Llama",
             targets: ["Llama"]),
+        .library(
+            name: "CLlama",
+            targets: ["CLlama"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
