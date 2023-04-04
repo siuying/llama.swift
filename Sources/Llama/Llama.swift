@@ -17,10 +17,17 @@ public struct LlamaContextParams {
     public var useMlock = false     // force system to keep model in RAM
     public var embedding = false    // embedding mode only
 
-    // called with a progress value between 0 and 1, pass nil to disable
-    public var progressCallback: LlamaProgressCallback?
-    // context pointer passed to the progress callback
-    public var progressCallbackUserData: UnsafeMutableRawPointer?
+    public init(context: Int32 = 512, parts: Int32 = -1, seed: Int32 = 0, numberOFThread: Int32 = 4, f16Kv: Bool = true, logitsAll: Bool = false, vocabOnly: Bool = false, useMlock: Bool = false, embedding: Bool = false) {
+        self.context = context
+        self.parts = parts
+        self.seed = seed
+        self.numberOFThread = numberOFThread
+        self.f16Kv = f16Kv
+        self.logitsAll = logitsAll
+        self.vocabOnly = vocabOnly
+        self.useMlock = useMlock
+        self.embedding = embedding
+    }
 }
 
 public struct LlamaSampleParams {
